@@ -62,18 +62,18 @@ class VisualKeyPoint:
 
         width   = result[0]
         height  = result[1]
-        array   = result[6]
 
         image = np.zeros((height, width, 3), np.uint8)
         detector = cv2.ORB_create()
 
         while True:
+            result = self.camera.getImageRemote(self.captureDevice)
             if result == None:
                 print 'cannot capture.'
             elif result[6] == None:
                 print 'no image data string'
             else:
-                values = map(ord, str((array)))
+                values = map(ord, str(result[6]))
                 i = 0
                 for y in range(0, height):
                     for x in range(0, width):
