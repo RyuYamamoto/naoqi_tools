@@ -6,7 +6,7 @@ import cv2
 NAME = "camera_image"
 CAMERA_ID = 1
 RESOLUTION = 2
-FRAMERATE = 15
+FRAME_RATE = 15
 COLOR_SPACE = 13
 
 class Authenticator:
@@ -60,8 +60,9 @@ class CameraImage:
     def run(self):
         result = self.camera.getImageRemote(self.captureDevice)
 
-        wdith = result[0]
-        height = result[1]
+        width   = result[0]
+        height  = result[1]
+        array   = result[6]
 
         image = np.zeros((height, width, 3), np.uint8)
 
