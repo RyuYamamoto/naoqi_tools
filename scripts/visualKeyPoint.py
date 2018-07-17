@@ -83,7 +83,7 @@ class VisualKeyPoint:
                         i += 3
                 
                 keypoints = detector.detect(image)
-                out_image = cv2.drawKeypoints(image, keypoints, None)
+                out_image = cv2.drawKeypoints(image, keypoints, None, color=(0,255,0), flags=0)
 
                 cv2.imshow("test",out_image)
 
