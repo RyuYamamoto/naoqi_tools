@@ -4,8 +4,8 @@ import numpy as np
 import cv2
 
 NAME = "camera_image"
-CAMERA_ID = 1
-RESOLUTION = 2
+CAMERA_ID = 0
+RESOLUTION = 3
 FRAME_RATE = 15
 COLOR_SPACE = 13
 
@@ -31,7 +31,6 @@ class ClientFactory:
 class CameraImage:
     def __init__(self, ip):
         self.ip = ip
-
         self.connect()
 
     def connect(self):
@@ -40,20 +39,20 @@ class CameraImage:
                 self.session = qi.Session()
                 port = 9559
                 self.session.connect("tcp://" + self.ip + ":" + str(port))
-            except Exception,errorMsg:
+            except (Exception,errorMsg):
                 try:
                     self.session = qi.Session()
                     factory = ClientFactory("nao", "nao")
                     self.session.setClientAuthenticatorFactory(factory)
                     self.session.connect('tcps://{ip}:9503'.format(ip=self.ip))
-                    print "ok connection"
-                except Exception,errorMsg2:
-                    print errorMsg2
-                self.camera = self.session.service("ALVideoDevice")
-                self.captureDevice = self.camera.subscribeCamera(NAME, CAMERA_ID, RESOLUTION, COLOR_SPACE, FRAME_RATE)
-        except Exception,errorMsg:
-            print "Error when creating proxy: "
-            print str(errorMsg)
+                    print ("ok connection")
+                except (Exception,errorMsg2):
+                    print (errorMsg2)
+            self.camera = self.session.service("ALVideoDevice")
+            self.captureDevice = self.camera.subscribeCamera(NAME, CAMERA_ID, RESOLUTION, COLOR_SPACE, FRAME_RATE)
+        except (Exception,errorMsg):
+            print ("Error when creating proxy: ")
+            print (str(errorMsg))
 
         self.run()
 
@@ -68,9 +67,9 @@ class CameraImage:
         while True:
             result = self.camera.getImageRemote(self.captureDevice)
             if result == None:
-                print 'cannot capture.'
+                print ('cannot capture.')
             elif result[6] == None:
-                print 'no image data string'
+                print ('no image data string')
             else:
                 values = map(ord, str(result[6]))
                 i = 0
@@ -92,5 +91,5 @@ if __name__ == "__main__":
     ip = "127.0.0.1"
     if(len(sys.argv))>1:
         ip = sys.argv[1]
-    print "IP: " + ip
+    print ("IP: " + ip)
     win = CameraImage(ip)
