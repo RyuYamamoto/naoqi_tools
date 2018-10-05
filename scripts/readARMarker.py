@@ -5,7 +5,7 @@ import cv2
 
 NAME = "camera_image"
 CAMERA_ID = 0
-RESOLUTION = 3
+RESOLUTION = 1
 FRAME_RATE = 15
 COLOR_SPACE = 13
 
@@ -32,7 +32,7 @@ class CameraImage:
     def __init__(self, ip):
         self.ip = ip
         self.aruco = cv2.aruco
-        self.dictionary = self.aruco.getPredefinedDictionary(self.aruco.DICT_4X4_50)
+        self.dictionary = self.aruco.getPredefinedDictionary(self.aruco.DICT_4X4_1000)
 
         self.connect()
 
@@ -90,7 +90,6 @@ class CameraImage:
             if cv2.waitKey(33) == 27:
                 self.camera.unsubscribe(NAME)
                 break
-
 
 if __name__ == "__main__":
     ip = "127.0.0.1"
