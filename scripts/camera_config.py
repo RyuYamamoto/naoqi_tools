@@ -44,9 +44,9 @@ CAMERA_PARAMETERS = {
 
 DEFAULT_PARAMS = {
     "camera": vd.kTopCamera,
-    "resolution": vd.k16VGA,
+    "resolution": vd.kVGA,
     "ids": list(),  # ARuco ids, if empty, return all detected ids
-    "size": 0.28,  # ARuco real size in meters
+    "size": 0.25,  # ARuco real size in meters
     "color": list(),  # ARuco real color in RGB, if empty not thresholding
     "dictionary": cv2.aruco.DICT_4X4_1000,  # ARuco dictionary
     "position": "ceiling",  # ARuco marker position "floor", "wall" or "ceiling"
@@ -54,4 +54,4 @@ DEFAULT_PARAMS = {
     "exposure": 0,  # default exposure is 400, if 0, exposure not changed
 }
 
-SUBSCRIBER_ID = "UnimatNavigationVisualizer"
+SUBSCRIBER_ID = "camera_image"

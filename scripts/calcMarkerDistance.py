@@ -8,6 +8,8 @@ import cv2.aruco
 import almath
 import math
 
+import signal
+
 from camera_config import *
 
 class Authenticator:
@@ -37,7 +39,12 @@ class CameraImage:
         self.image_remote = None
         self.subscriber_id = None
 
+        signal.signal(signal.SIGINT, self.handler)
+
         self.connect()
+
+    def handler(self, signal, frame):
+        self.unsubscribe()
 
     def connect(self):
         try:
@@ -102,8 +109,13 @@ class CameraImage:
         print("calculation marker information")
         start_time = time.time()
 
-        self.image_remote = self.camera.getImageRemote(self.subscriber_id)
+        try:
+            self.image_remote = self.camera.getImageRemote(self.subscriber_id)
+        except Exception as message:
+            self.unsubscribe()
+            print(str(message))
         if not self.image_remote:
+            self.unsubscribe()
             raise Exception("No data in image")
         camera = self.params["camera"]
         camera_name = CAMERAS[camera]
@@ -124,81 +136,63 @@ class CameraImage:
 
         p6Ds = dict()
         corners, ids, rejectedImgPoints = cv2.aruco.detectMarkers(image, self.params["dictionary"])
-        print(ids)
 
         result = False
-        if ids:
-            if ids == [965]:
-                rvecs, tvecs, _ = cv2.aruco.estimatePoseSingleMarkers(corners, \
-                                                                      self.params["size"], \
-                                                                      CAMERA_DATAS_AT_RESOLUTION[resolution]["matrix"], \
-                                                                      CAMERA_DISTORTION_COEFF)
+        if ids is not None:
+            try:
+                if [328] in ids:
+                    count = 0
+                    for _id in ids:
+                        print(_id)
+                        if _id == [328]:
+                            break
+                        count = count + 1
 
-                tvec = tvecs[0][0]
-                x, y, z = tvec[2], -tvec[0], -tvec[1]
-                p3d_camera2target = almath.Position3D(x, y, z)
+                    rvecs, tvecs, _ = cv2.aruco.estimatePoseSingleMarkers(corners, \
+                                                                          self.params["size"], \
+                                                                          CAMERA_DATAS_AT_RESOLUTION[resolution]["matrix"], \
+                                                                          CAMERA_DISTORTION_COEFF)
 
-                rvec = rvecs[0][0]
-                wx, wy, wz = rvec[2], -rvec[0], -rvec[1]
-                proj_rvec, _ = cv2.Rodrigues(numpy.array([wx, wy, wz]))
+                    tvec = tvecs[count][0]
+                    x, y, z = tvec[2], -tvec[0], -tvec[1]
+                    p3d_camera2target = almath.Position3D(x, y, z)
 
-                r_camera2target = almath.Rotation(proj_rvec.flatten())
-                t_camera2target = almath.transformFromRotationPosition3D(r_camera2target, p3d_camera2target)
+                    rvec = rvecs[count][0]
+                    wx, wy, wz = rvec[2], -rvec[0], -rvec[1]
+                    proj_rvec, _ = cv2.Rodrigues(numpy.array([wx, wy, wz]))
 
-                r3d_correction = almath.Rotation3D(0., 3*math.pi/2, 0)
+                    r_camera2target = almath.Rotation(proj_rvec.flatten())
+                    t_camera2target = almath.transformFromRotationPosition3D(r_camera2target, p3d_camera2target)
 
-                t_corretion = almath.transformFromRotation3D(r3d_correction)
-                t_world2target = t_world2camera * t_camera2target * t_corretion
-                t_robot2target = t_robot2camera * t_camera2target * t_corretion
+                    r3d_correction = almath.Rotation3D(0., 3*math.pi/2, 0)
 
-                p6D_world2target = almath.position6DFromTransform(t_world2target)
-                p6D_robot2target = almath.position6DFromTransform(t_robot2target)
+                    t_corretion = almath.transformFromRotation3D(r3d_correction)
+                    t_world2target = t_world2camera * t_camera2target * t_corretion
+                    t_robot2target = t_robot2camera * t_camera2target * t_corretion
 
-                p6Ds[ids] = {
-                    "robot2target": list(p6D_robot2target.toVector()),
-                    "world2target": list(p6D_world2target.toVector())
-                }
-                result = True
-            print("ID:" + str(ids))
+                    p6D_world2target = almath.position6DFromTransform(t_world2target)
+                    p6D_robot2target = almath.position6DFromTransform(t_robot2target)
+
+                    print("[x,y,theta] = [{},{},{}]".format(p6D_robot2target.x, p6D_robot2target.y, math.degrees(p6D_robot2target.wz)))
+
+                    #p6Ds[ids] = {
+                    #    "robot2target": list(p6D_robot2target.toVector())
+                        #"world2target": list(p6D_world2target.toVector())
+                    #}
+                    result = True
+                print("ID:" + str(ids))
+            except Exception as message:
+                print("failed: {}".format(str(message)))
+                self.unsubscribe()
         else:
             result = False
             print("No Marker")
         delta_time = time.time() - start_time
-        #print("task done in %s seconds" & delta_time)
         return result
 
     def run(self):
-        
         while True:
-            self.calc_marker()
-            '''
-            width = self.image_remote[0]
-            height = self.image_remote[1]
-            
-            image = np.zeros((height, width, 3), np.uint8)
-
-            if self.image_remote == None:
-                print('cannot capture.')
-            elif self.image_remote[6] == None:
-                print('no image data string')
-            else:
-                values = map(ord, str(self.image_remote[6]))
-                i = 0
-                for y in range(0, height):
-                    for x in range(0, width):
-                        image.itemset((y, x, 0), values[i + 0])
-                        image.itemset((y, x, 1), values[i + 1])
-                        image.itemset((y, x, 2), values[i + 2])
-                        i += 3
-
-                corners, ids, rejectedImgPoints = self.aruco.detectMarkers(image, self.dictionary)
-                self.aruco.drawDetectedMarkers(image, corners, ids, (0, 255, 0))
-                cv2.imshow("test", image)
-
-            if cv2.waitKey(33) == 27:
-                self.camera.unsubscribe(NAME)
-                break
-            '''
+            result = self.calc_marker()
 
 if __name__ == "__main__":
     ip = "127.0.0.1"
