@@ -1,10 +1,14 @@
 import os
 import sys
 import time
+import csv
 
 sys.path.insert(0,"/home/nao/scripts/_naoqios")
 import qi
 import numpy as np
+
+import matplotlib.pyplot as plt
+import matplotlib.patches as patches
 
 import almath
 import math
@@ -32,13 +36,55 @@ class ClientFactory:
     def newAuthenticator(self):
         return Authenticator(self.user, self.pswd)
 
-class CameraImage:
+class Visualizer:
+    def __init__(self):
+        self.r = 0.2
+        self.pos = almath.Pose2D(0,0,0)
+        fig = plt.figure(figsize=(8,8))
+        self.ax = plt.axes()
+
+    def config_screen(self):
+        self.ax.cla()
+        self.ax.set_aspect('equal')
+        self.ax.set_xlim(-1,5)
+        self.ax.set_ylim(-3,3)
+
+    def set_marker_pos(self, pos):
+        self.pos = pos
+
+    def draw_robot(self):
+        x, y, theta = almath.Pose2D().toVector()
+
+        xn = x + self.r * math.cos(theta)
+        yn = y + self.r * math.sin(theta)
+        self.ax.plot([x,xn], [y,yn], color="black")
+        c = patches.Circle(xy=(x,y), radius=self.r, fill=False, color="black")
+        self.ax.add_patch(c)
+
+    def draw_marker(self):
+        x, y, theta = self.pos.toVector()
+
+        ux = 0.3 * math.cos(theta)
+        vx = 0.3 * math.sin(theta)
+        self.ax.quiver(x, y, ux, vx, angles="xy", scale_units='xy', alpha=1, width=0.003, scale=1)
+
+        uy = - 0.3 * math.sin(theta)
+        vy =   0.3 * math.cos(theta)
+        self.ax.quiver(x, y, uy, vy, angles="xy", scale_units='xy', alpha=1, width=0.003, scale=1)
+
+class KalmanFilter:
+    def __init__(self):
+        print("www")
+        
+class EKFLocalization:
     def __init__(self, ip):
         self.ip = ip
         self.aruco = cv2.aruco
         self.dictionary = self.aruco.getPredefinedDictionary(self.aruco.DICT_4X4_1000)
         self.image_remote = None
         self.subscriber_id = None
+
+        self.viz = Visualizer()
 
         signal.signal(signal.SIGINT, self.handler)
 
@@ -103,6 +149,7 @@ class CameraImage:
             # self.periodic_tasks.stop()
             self.subscriber_id = None
             print("unsubscribe done")
+            exit(1)
         else:
             raise Exception("DXAruco is not running")
 
@@ -138,6 +185,7 @@ class CameraImage:
         corners, ids, rejectedImgPoints = cv2.aruco.detectMarkers(image, self.params["dictionary"])
 
         result = False
+        marker_pos = list()
         if ids is not None:
             try:
                 if [965] in ids:
@@ -171,26 +219,50 @@ class CameraImage:
 
                     p6D_world2target = almath.position6DFromTransform(t_world2target)
                     p6D_robot2target = almath.position6DFromTransform(t_robot2target)
-
+                    
                     print("[x,y,theta] = [{},{},{}]".format(p6D_robot2target.x, p6D_robot2target.y, math.degrees(p6D_robot2target.wz)))
 
-                    result = True
+                    marker_pos = list(p6D_robot2target.toVector())
+                    result = {"result": True, "p6D_robot2target": marker_pos}
+                else:
+                    result = {"result": False, "p6D_robot2target": marker_pos}
             except Exception as message:
                 print("failed: {}".format(str(message)))
                 self.unsubscribe()
         else:
-            result = False
+            result = {"result": False, "p6D_robot2target": marker_pos}
             print("No Marker")
         delta_time = time.time() - start_time
         return result
 
+    def save_csv(self, marker_pos):
+        f = open("plot.csv", "a")
+        writer = csv.writer(f, lineterminator="\n")
+        marker_data = list()
+        marker_data.append(marker_pos[0])
+        marker_data.append(marker_pos[1])
+        marker_data.append(marker_pos[5])
+        writer.writerow(marker_data)
+        f.close()
+
     def run(self):
-        while True:
-            result = self.calc_marker()
+        try:
+            while True:
+                self.viz.config_screen()
+                self.viz.draw_robot()
+                result = self.calc_marker()
+                if result["result"]:
+                    marker_pos = result["p6D_robot2target"]
+                    self.viz.set_marker_pos(almath.Pose2D(marker_pos[0], marker_pos[1], marker_pos[5]))
+                    self.viz.draw_marker()
+                plt.pause(0.01)
+        except Exception as message:
+            print("running is failed : "+str(message))
+            self.unsubscribe()
 
 if __name__ == "__main__":
     ip = "127.0.0.1"
     if(len(sys.argv)) > 1:
         ip = sys.argv[1]
     print("IP:" + ip)
-    win = CameraImage(ip)
+    win = EKFLocalization(ip)
