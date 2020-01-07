@@ -42,18 +42,18 @@ class CameraImage:
                 self.session = qi.Session()
                 port = 9559
                 self.session.connect("tcp://" + self.ip + ":" + str(port))
-            except (Exception,errorMsg):
+            except Exception as errorMsg:
                 try:
                     self.session = qi.Session()
                     factory = ClientFactory("nao", "nao")
                     self.session.setClientAuthenticatorFactory(factory)
                     self.session.connect('tcps://{ip}:9503'.format(ip=self.ip))
                     print ("ok connection")
-                except (Exception,errorMsg2):
+                except Exception as errorMsg2:
                     print (errorMsg2)
             self.camera = self.session.service("ALVideoDevice")
             self.captureDevice = self.camera.subscribeCamera(NAME, CAMERA_ID, RESOLUTION, COLOR_SPACE, FRAME_RATE)
-        except (Exception,errorMsg):
+        except Exception as errorMsg:
             print ("Error when creating proxy: ")
             print (str(errorMsg))
 
